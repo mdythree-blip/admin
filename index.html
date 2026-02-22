@@ -76,7 +76,7 @@
             100% { transform: translate(-50%, -50%) scale(20); opacity: 0; width: 250px; height: 250px; }
         }
 
-        /* 雪花特效 */
+        /* 雪花特效 - 使用变量控制速度 */
         .snowflake {
             position: fixed;
             background: white;
@@ -92,6 +92,58 @@
         @keyframes fall {
             from { transform: translateY(-100vh) rotate(0deg); }
             to { transform: translateY(100vh) rotate(360deg); }
+        }
+
+        /* 星光粒子 - 使用变量控制速度 */
+        .star {
+            position: fixed;
+            background: white;
+            border-radius: 50%;
+            pointer-events: none;
+            z-index: 29999;
+            opacity: 0;
+            filter: blur(1px);
+            box-shadow: 0 0 15px rgba(255, 255, 255, 0.8);
+            animation: twinkle linear infinite;
+            will-change: transform, opacity;
+        }
+        @keyframes twinkle {
+            0% { opacity: 0; transform: scale(0.5); }
+            50% { opacity: 1; transform: scale(1.2); }
+            100% { opacity: 0; transform: scale(0.5); }
+        }
+
+        /* 动态光影 */
+        .dynamic-light {
+            position: fixed;
+            width: 100%;
+            height: 100%;
+            top: 0;
+            left: 0;
+            pointer-events: none;
+            z-index: 29990;
+            background: radial-gradient(circle at var(--x, 50%) var(--y, 50%), rgba(255, 255, 255, 0.1) 0%, transparent 50%);
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+        .dynamic-light.visible {
+            opacity: 1;
+        }
+
+        /* 彩虹边框效果 - 使用变量控制速度 */
+        @keyframes rainbow {
+            0% { border-color: #ff0000; box-shadow: 0 0 15px #ff0000; }
+            17% { border-color: #ff8800; box-shadow: 0 0 15px #ff8800; }
+            33% { border-color: #ffff00; box-shadow: 0 0 15px #ffff00; }
+            50% { border-color: #00ff00; box-shadow: 0 0 15px #00ff00; }
+            67% { border-color: #0088ff; box-shadow: 0 0 15px #0088ff; }
+            83% { border-color: #8800ff; box-shadow: 0 0 15px #8800ff; }
+            100% { border-color: #ff0000; box-shadow: 0 0 15px #ff0000; }
+        }
+        .rainbow-border {
+            animation: rainbow var(--rainbow-speed, 3s) linear infinite !important;
+            border-width: 2px !important;
+            border-style: solid !important;
         }
 
         /* 主容器 */
@@ -129,7 +181,7 @@
             text-shadow: 0 0 12px rgba(255,255,255,0.2);
         }
 
-        /* 版本选择栏 - 菜单图标保留在原位 */
+        /* 版本选择栏 */
         .version-bar {
             display: flex;
             align-items: center;
@@ -175,12 +227,12 @@
             border: 1px solid #333;
         }
 
-        /* 侧边栏菜单 - 固定定位从左侧滑入 */
+        /* 侧边栏菜单 */
         .sidebar {
             position: fixed;
             top: 0;
-            left: -280px; /* 初始隐藏 */
-            width: 260px;
+            left: -320px;
+            width: 300px;
             height: 100vh;
             background: #0a0a0a;
             border-right: 1px solid #333;
@@ -192,6 +244,7 @@
             display: flex;
             flex-direction: column;
             gap: 1rem;
+            overflow-y: auto;
         }
         .sidebar.visible {
             left: 0;
@@ -208,12 +261,11 @@
             display: flex;
             align-items: center;
             justify-content: space-between;
-            padding: 1rem;
+            padding: 0.8rem 1rem;
             border-bottom: 1px solid #222;
             cursor: pointer;
             transition: background 0.2s;
         }
-        .sidebar-item:last-child { border-bottom: none; }
         .sidebar-item:hover { background: #1a1a1a; border-radius: 12px; }
         .sidebar-item-label { color: #fff; font-weight: 500; }
         .sidebar-item-switch {
@@ -238,7 +290,51 @@
         .sidebar-item.active .sidebar-item-switch { background: #4a4a4a; }
         .sidebar-item.active .sidebar-item-switch::after { transform: translateX(20px); background: #fff; }
 
-        /* 遮罩层 - 点击侧边栏外部关闭 */
+        /* 滑块容器 - 默认隐藏，开启对应功能后显示 */
+        .slider-container {
+            padding: 0.5rem 1rem 1rem 1rem;
+            border-bottom: 1px solid #222;
+            display: none;
+        }
+        .slider-container.visible {
+            display: block;
+        }
+        .slider-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 0.5rem;
+        }
+        .slider-label {
+            color: #b0b0b0;
+            font-size: 0.9rem;
+        }
+        .slider-value {
+            color: #fff;
+            font-size: 0.9rem;
+            background: #1a1a1a;
+            padding: 0.2rem 0.5rem;
+            border-radius: 20px;
+        }
+        .slider {
+            width: 100%;
+            height: 6px;
+            background: #333;
+            border-radius: 3px;
+            outline: none;
+            -webkit-appearance: none;
+        }
+        .slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 18px;
+            height: 18px;
+            background: #fff;
+            border-radius: 50%;
+            cursor: pointer;
+            box-shadow: 0 0 10px rgba(255,255,255,0.5);
+        }
+
+        /* 遮罩层 */
         .sidebar-overlay {
             position: fixed;
             top: 0;
@@ -436,6 +532,9 @@
     </style>
 </head>
 <body>
+    <!-- 动态光影层 -->
+    <div class="dynamic-light" id="dynamicLight"></div>
+
     <!-- 圆圈加载条 -->
     <div class="loading-container" id="loadingContainer">
         <div class="circle-loader"></div>
@@ -453,14 +552,55 @@
 
     <!-- 侧边栏菜单 -->
     <div class="sidebar" id="sidebar">
-        <div class="sidebar-header">功能设置</div>
+        <div class="sidebar-header">✨ 特效控制台</div>
+        
+        <!-- 基础特效 -->
         <div class="sidebar-item active" id="rippleSidebarItem">
-            <span class="sidebar-item-label">涟漪特效</span>
+            <span class="sidebar-item-label">🌊 涟漪特效</span>
             <div class="sidebar-item-switch"></div>
         </div>
-        <div class="sidebar-item active" id="snowSidebarItem">
-            <span class="sidebar-item-label">雪花特效</span>
+        <div class="sidebar-item active" id="dynamicLightItem">
+            <span class="sidebar-item-label">✨ 动态光影</span>
             <div class="sidebar-item-switch"></div>
+        </div>
+
+        <!-- 雪花特效 + 速率滑块 -->
+        <div class="sidebar-item active" id="snowSidebarItem">
+            <span class="sidebar-item-label">❄️ 雪花特效</span>
+            <div class="sidebar-item-switch"></div>
+        </div>
+        <div class="slider-container" id="snowSpeedContainer">
+            <div class="slider-header">
+                <span class="slider-label">雪花飘落速率</span>
+                <span class="slider-value" id="snowSpeedValue">1.0x</span>
+            </div>
+            <input type="range" min="0.3" max="2.5" step="0.1" value="1.0" class="slider" id="snowSpeedSlider">
+        </div>
+
+        <!-- 星光粒子 + 速率滑块 -->
+        <div class="sidebar-item active" id="starParticleItem">
+            <span class="sidebar-item-label">🌠 星光粒子</span>
+            <div class="sidebar-item-switch"></div>
+        </div>
+        <div class="slider-container" id="starSpeedContainer">
+            <div class="slider-header">
+                <span class="slider-label">星光闪烁速率</span>
+                <span class="slider-value" id="starSpeedValue">1.0x</span>
+            </div>
+            <input type="range" min="0.3" max="2.5" step="0.1" value="1.0" class="slider" id="starSpeedSlider">
+        </div>
+
+        <!-- 彩虹边框 + 速率滑块 -->
+        <div class="sidebar-item" id="rainbowBorderItem">
+            <span class="sidebar-item-label">🌈 彩虹边框</span>
+            <div class="sidebar-item-switch"></div>
+        </div>
+        <div class="slider-container" id="rainbowSpeedContainer">
+            <div class="slider-header">
+                <span class="slider-label">边框变色速率</span>
+                <span class="slider-value" id="rainbowSpeedValue">1.0x</span>
+            </div>
+            <input type="range" min="0.3" max="2.5" step="0.1" value="1.0" class="slider" id="rainbowSpeedSlider">
         </div>
     </div>
 
@@ -693,9 +833,23 @@
                 });
             }
 
+            // ---------- 动态光影 ----------
+            const dynamicLight = document.getElementById('dynamicLight');
+            let dynamicLightEnabled = true;
+            
+            document.addEventListener('mousemove', (e) => {
+                if (!dynamicLightEnabled) return;
+                const x = (e.clientX / window.innerWidth) * 100;
+                const y = (e.clientY / window.innerHeight) * 100;
+                dynamicLight.style.setProperty('--x', `${x}%`);
+                dynamicLight.style.setProperty('--y', `${y}%`);
+            });
+
             // ---------- 雪花特效 ----------
             let snowEnabled = true;
             let snowInterval = null;
+            let snowSpeed = 1.0;
+            
             function startSnow() {
                 if (snowInterval) return;
                 snowInterval = setInterval(() => {
@@ -707,16 +861,17 @@
                         flake.style.width = size + 'px';
                         flake.style.height = size + 'px';
                         flake.style.left = Math.random() * 100 + 'vw';
-                        flake.style.animationDuration = (Math.random() * 12 + 8) + 's';
+                        flake.style.animationDuration = (Math.random() * 12 + 8) / snowSpeed + 's';
                         flake.style.opacity = Math.random() * 0.25 + 0.15;
                         flake.style.filter = `blur(${Math.random() * 1.5}px)`;
                         document.body.appendChild(flake);
                         setTimeout(() => {
                             if (flake.parentNode) flake.remove();
-                        }, 25000);
+                        }, 25000 / snowSpeed);
                     });
-                }, 150);
+                }, 150 / snowSpeed);
             }
+            
             function stopSnow() {
                 if (snowInterval) {
                     clearInterval(snowInterval);
@@ -725,44 +880,163 @@
                 document.querySelectorAll('.snowflake').forEach(f => f.remove());
             }
 
+            // ---------- 星光粒子 ----------
+            let starEnabled = true;
+            let starInterval = null;
+            let starSpeed = 1.0;
+            
+            function startStars() {
+                if (starInterval) return;
+                starInterval = setInterval(() => {
+                    if (!starEnabled) return;
+                    requestAnimationFrame(() => {
+                        const star = document.createElement('div');
+                        star.className = 'star';
+                        const size = Math.random() * 4 + 1;
+                        star.style.width = size + 'px';
+                        star.style.height = size + 'px';
+                        star.style.left = Math.random() * 100 + 'vw';
+                        star.style.top = Math.random() * 100 + 'vh';
+                        star.style.animationDuration = (Math.random() * 3 + 2) / starSpeed + 's';
+                        star.style.animationDelay = Math.random() * 2 + 's';
+                        document.body.appendChild(star);
+                        setTimeout(() => {
+                            if (star.parentNode) star.remove();
+                        }, 5000 / starSpeed);
+                    });
+                }, 200 / starSpeed);
+            }
+            
+            function stopStars() {
+                if (starInterval) {
+                    clearInterval(starInterval);
+                    starInterval = null;
+                }
+                document.querySelectorAll('.star').forEach(s => s.remove());
+            }
+
+            // ---------- 彩虹边框 ----------
+            let rainbowEnabled = false;
+            let rainbowSpeed = 1.0;
+            
+            function updateRainbowSpeed() {
+                document.querySelectorAll('.client-card').forEach(card => {
+                    card.style.setProperty('--rainbow-speed', (3 / rainbowSpeed) + 's');
+                });
+            }
+            
+            function toggleRainbow(enable) {
+                document.querySelectorAll('.client-card').forEach(card => {
+                    if (enable) {
+                        card.classList.add('rainbow-border');
+                    } else {
+                        card.classList.remove('rainbow-border');
+                    }
+                });
+            }
+
             // ---------- 侧边栏菜单与记忆 ----------
             const menuIcon = document.getElementById('menuIcon');
             const sidebar = document.getElementById('sidebar');
             const sidebarOverlay = document.getElementById('sidebarOverlay');
+            
+            // 获取所有侧边栏项和滑块
             const rippleSidebarItem = document.getElementById('rippleSidebarItem');
             const snowSidebarItem = document.getElementById('snowSidebarItem');
+            const dynamicLightItem = document.getElementById('dynamicLightItem');
+            const starParticleItem = document.getElementById('starParticleItem');
+            const rainbowBorderItem = document.getElementById('rainbowBorderItem');
+            
+            const snowSpeedContainer = document.getElementById('snowSpeedContainer');
+            const starSpeedContainer = document.getElementById('starSpeedContainer');
+            const rainbowSpeedContainer = document.getElementById('rainbowSpeedContainer');
+            
+            const snowSpeedSlider = document.getElementById('snowSpeedSlider');
+            const starSpeedSlider = document.getElementById('starSpeedSlider');
+            const rainbowSpeedSlider = document.getElementById('rainbowSpeedSlider');
+            
+            const snowSpeedValue = document.getElementById('snowSpeedValue');
+            const starSpeedValue = document.getElementById('starSpeedValue');
+            const rainbowSpeedValue = document.getElementById('rainbowSpeedValue');
 
             // 读取记忆
             rippleEnabled = localStorage.getItem('rippleEnabled') !== 'false';
             snowEnabled = localStorage.getItem('snowEnabled') !== 'false';
+            dynamicLightEnabled = localStorage.getItem('dynamicLightEnabled') !== 'false';
+            starEnabled = localStorage.getItem('starEnabled') !== 'false';
+            rainbowEnabled = localStorage.getItem('rainbowEnabled') === 'true';
+            
+            snowSpeed = parseFloat(localStorage.getItem('snowSpeed')) || 1.0;
+            starSpeed = parseFloat(localStorage.getItem('starSpeed')) || 1.0;
+            rainbowSpeed = parseFloat(localStorage.getItem('rainbowSpeed')) || 1.0;
 
-            // 应用状态到侧边栏项
+            // 应用状态
             if (rippleEnabled) rippleSidebarItem.classList.add('active');
             else rippleSidebarItem.classList.remove('active');
 
             if (snowEnabled) {
                 snowSidebarItem.classList.add('active');
+                snowSpeedContainer.classList.add('visible');
                 startSnow();
             } else {
                 snowSidebarItem.classList.remove('active');
+                snowSpeedContainer.classList.remove('visible');
                 stopSnow();
             }
 
-            // 打开侧边栏
+            if (dynamicLightEnabled) {
+                dynamicLightItem.classList.add('active');
+                dynamicLight.classList.add('visible');
+            } else {
+                dynamicLightItem.classList.remove('active');
+                dynamicLight.classList.remove('visible');
+            }
+
+            if (starEnabled) {
+                starParticleItem.classList.add('active');
+                starSpeedContainer.classList.add('visible');
+                startStars();
+            } else {
+                starParticleItem.classList.remove('active');
+                starSpeedContainer.classList.remove('visible');
+                stopStars();
+            }
+
+            if (rainbowEnabled) {
+                rainbowBorderItem.classList.add('active');
+                rainbowSpeedContainer.classList.add('visible');
+                toggleRainbow(true);
+                updateRainbowSpeed();
+            } else {
+                rainbowBorderItem.classList.remove('active');
+                rainbowSpeedContainer.classList.remove('visible');
+                toggleRainbow(false);
+            }
+
+            // 设置滑块值和显示
+            snowSpeedSlider.value = snowSpeed;
+            snowSpeedValue.textContent = snowSpeed.toFixed(1) + 'x';
+            
+            starSpeedSlider.value = starSpeed;
+            starSpeedValue.textContent = starSpeed.toFixed(1) + 'x';
+            
+            rainbowSpeedSlider.value = rainbowSpeed;
+            rainbowSpeedValue.textContent = rainbowSpeed.toFixed(1) + 'x';
+            
+            updateRainbowSpeed();
+
+            // 打开/关闭侧边栏
             function openSidebar() {
                 sidebar.classList.add('visible');
                 sidebarOverlay.classList.add('visible');
                 menuIcon.classList.add('active');
             }
-
-            // 关闭侧边栏
             function closeSidebar() {
                 sidebar.classList.remove('visible');
                 sidebarOverlay.classList.remove('visible');
                 menuIcon.classList.remove('active');
             }
 
-            // 点击菜单图标切换侧边栏
             menuIcon.addEventListener('click', (e) => {
                 e.stopPropagation();
                 if (sidebar.classList.contains('visible')) {
@@ -773,13 +1047,12 @@
                 createRipple(e);
             });
 
-            // 点击遮罩关闭侧边栏
             sidebarOverlay.addEventListener('click', (e) => {
                 closeSidebar();
                 createRipple(e);
             });
 
-            // 侧边栏内的开关点击
+            // 侧边栏开关点击
             rippleSidebarItem.addEventListener('click', (e) => {
                 e.stopPropagation();
                 rippleEnabled = !rippleEnabled;
@@ -792,13 +1065,75 @@
                 e.stopPropagation();
                 snowEnabled = !snowEnabled;
                 snowSidebarItem.classList.toggle('active', snowEnabled);
+                snowSpeedContainer.classList.toggle('visible', snowEnabled);
                 localStorage.setItem('snowEnabled', snowEnabled);
                 if (snowEnabled) startSnow();
                 else stopSnow();
                 createRipple(e);
             });
 
-            // 全局点击涟漪（排除已在子元素触发的情况）
+            dynamicLightItem.addEventListener('click', (e) => {
+                e.stopPropagation();
+                dynamicLightEnabled = !dynamicLightEnabled;
+                dynamicLightItem.classList.toggle('active', dynamicLightEnabled);
+                dynamicLight.classList.toggle('visible', dynamicLightEnabled);
+                localStorage.setItem('dynamicLightEnabled', dynamicLightEnabled);
+                createRipple(e);
+            });
+
+            starParticleItem.addEventListener('click', (e) => {
+                e.stopPropagation();
+                starEnabled = !starEnabled;
+                starParticleItem.classList.toggle('active', starEnabled);
+                starSpeedContainer.classList.toggle('visible', starEnabled);
+                localStorage.setItem('starEnabled', starEnabled);
+                if (starEnabled) startStars();
+                else stopStars();
+                createRipple(e);
+            });
+
+            rainbowBorderItem.addEventListener('click', (e) => {
+                e.stopPropagation();
+                rainbowEnabled = !rainbowEnabled;
+                rainbowBorderItem.classList.toggle('active', rainbowEnabled);
+                rainbowSpeedContainer.classList.toggle('visible', rainbowEnabled);
+                localStorage.setItem('rainbowEnabled', rainbowEnabled);
+                toggleRainbow(rainbowEnabled);
+                createRipple(e);
+            });
+
+            // 速率滑块事件
+            snowSpeedSlider.addEventListener('input', (e) => {
+                e.stopPropagation();
+                snowSpeed = parseFloat(e.target.value);
+                snowSpeedValue.textContent = snowSpeed.toFixed(1) + 'x';
+                localStorage.setItem('snowSpeed', snowSpeed);
+                if (snowEnabled) {
+                    stopSnow();
+                    startSnow();
+                }
+            });
+
+            starSpeedSlider.addEventListener('input', (e) => {
+                e.stopPropagation();
+                starSpeed = parseFloat(e.target.value);
+                starSpeedValue.textContent = starSpeed.toFixed(1) + 'x';
+                localStorage.setItem('starSpeed', starSpeed);
+                if (starEnabled) {
+                    stopStars();
+                    startStars();
+                }
+            });
+
+            rainbowSpeedSlider.addEventListener('input', (e) => {
+                e.stopPropagation();
+                rainbowSpeed = parseFloat(e.target.value);
+                rainbowSpeedValue.textContent = rainbowSpeed.toFixed(1) + 'x';
+                localStorage.setItem('rainbowSpeed', rainbowSpeed);
+                updateRainbowSpeed();
+            });
+
+            // 全局点击涟漪
             document.addEventListener('click', (e) => {
                 if (!e._rippleCreated) {
                     e._rippleCreated = true;
