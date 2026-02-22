@@ -1,0 +1,813 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MC客户端下载</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;14..32,400;14..32,500;14..32,600&display=swap" rel="stylesheet">
+    <style>
+        /* 全局样式 */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Inter', sans-serif;
+            background: #000;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 1.5rem;
+            position: relative;
+            overflow-x: hidden;
+        }
+
+        /* 圆圈加载条 */
+        .loading-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #000000;
+            z-index: 40000;
+            transition: opacity 0.5s ease, visibility 0.5s ease;
+        }
+        .loading-container.hidden {
+            opacity: 0;
+            visibility: hidden;
+        }
+        .circle-loader {
+            width: 80px;
+            height: 80px;
+            border: 5px solid rgba(255, 255, 255, 0.1);
+            border-top: 5px solid #ffffff;
+            border-radius: 50%;
+            box-shadow: 0 0 20px rgba(255, 255, 255, 0.3);
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* 涟漪效果 */
+        .ripple {
+            position: fixed;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.15);
+            transform: translate(-50%, -50%) scale(0);
+            animation: ripple-animation 0.9s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+            pointer-events: none;
+            z-index: 35000;
+            width: 30px;
+            height: 30px;
+            box-shadow: 0 0 25px rgba(255, 255, 255, 0.2);
+        }
+        @keyframes ripple-animation {
+            0% { transform: translate(-50%, -50%) scale(0); opacity: 0.4; width: 30px; height: 30px; }
+            100% { transform: translate(-50%, -50%) scale(20); opacity: 0; width: 250px; height: 250px; }
+        }
+
+        /* 雪花特效 */
+        .snowflake {
+            position: fixed;
+            background: white;
+            border-radius: 50%;
+            pointer-events: none;
+            z-index: 30000;
+            opacity: 0.3;
+            filter: blur(1px);
+            animation: fall linear infinite;
+            box-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
+            will-change: transform;
+        }
+        @keyframes fall {
+            from { transform: translateY(-100vh) rotate(0deg); }
+            to { transform: translateY(100vh) rotate(360deg); }
+        }
+
+        /* 主容器 */
+        .container {
+            max-width: 1200px;
+            width: 100%;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.8s ease, visibility 0.8s ease;
+            position: relative;
+            z-index: 1;
+        }
+        .container.visible {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        /* 标题区域 */
+        .header {
+            text-align: center;
+            margin-bottom: 2rem;
+            opacity: 0;
+            transform: translateY(-20px);
+            transition: opacity 0.6s ease, transform 0.6s ease;
+        }
+        .container.visible .header {
+            opacity: 1;
+            transform: translateY(0);
+            transition-delay: 0.2s;
+        }
+        .header h1 {
+            font-size: 2.5rem;
+            font-weight: 600;
+            color: #fff;
+            text-shadow: 0 0 12px rgba(255,255,255,0.2);
+        }
+
+        /* 版本选择栏 - 菜单图标保留在原位 */
+        .version-bar {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-top: 1rem;
+            margin-bottom: 2rem;
+            position: relative;
+            z-index: 200;
+        }
+        .menu-icon {
+            position: absolute;
+            left: 0;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            gap: 6px;
+            cursor: pointer;
+            padding: 8px;
+            border-radius: 8px;
+            transition: background 0.2s, transform 0.3s;
+            z-index: 201;
+        }
+        .menu-icon:hover { background: rgba(255,255,255,0.1); }
+        .menu-icon.active { transform: rotate(90deg); }
+        .menu-icon span {
+            width: 100%;
+            height: 3px;
+            background: #fff;
+            border-radius: 3px;
+            transition: 0.3s;
+        }
+        .menu-icon.active span:nth-child(1) { transform: rotate(45deg) translate(5px,5px); }
+        .menu-icon.active span:nth-child(2) { opacity: 0; }
+        .menu-icon.active span:nth-child(3) { transform: rotate(-45deg) translate(5px,-5px); }
+        .version-text {
+            color: #b0b0b0;
+            font-size: 1.2rem;
+            background: rgba(255,255,255,0.05);
+            padding: 0.5rem 2rem;
+            border-radius: 40px;
+            border: 1px solid #333;
+        }
+
+        /* 侧边栏菜单 - 固定定位从左侧滑入 */
+        .sidebar {
+            position: fixed;
+            top: 0;
+            left: -280px; /* 初始隐藏 */
+            width: 260px;
+            height: 100vh;
+            background: #0a0a0a;
+            border-right: 1px solid #333;
+            padding: 2rem 1rem;
+            z-index: 30000;
+            transition: left 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.8);
+            backdrop-filter: blur(10px);
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+        .sidebar.visible {
+            left: 0;
+        }
+        .sidebar-header {
+            color: #fff;
+            font-size: 1.5rem;
+            font-weight: 600;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid #333;
+            margin-bottom: 1rem;
+        }
+        .sidebar-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 1rem;
+            border-bottom: 1px solid #222;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .sidebar-item:last-child { border-bottom: none; }
+        .sidebar-item:hover { background: #1a1a1a; border-radius: 12px; }
+        .sidebar-item-label { color: #fff; font-weight: 500; }
+        .sidebar-item-switch {
+            width: 44px;
+            height: 24px;
+            background: #333;
+            border-radius: 30px;
+            position: relative;
+            transition: background 0.3s;
+        }
+        .sidebar-item-switch::after {
+            content: '';
+            position: absolute;
+            width: 18px;
+            height: 18px;
+            background: #888;
+            border-radius: 50%;
+            top: 3px;
+            left: 3px;
+            transition: transform 0.3s, background 0.3s;
+        }
+        .sidebar-item.active .sidebar-item-switch { background: #4a4a4a; }
+        .sidebar-item.active .sidebar-item-switch::after { transform: translateX(20px); background: #fff; }
+
+        /* 遮罩层 - 点击侧边栏外部关闭 */
+        .sidebar-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 25000;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s ease, visibility 0.3s ease;
+        }
+        .sidebar-overlay.visible {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        /* 卡片布局 */
+        .row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 1.8rem;
+            justify-content: center;
+            position: relative;
+            z-index: 1;
+        }
+        .col {
+            flex: 1 1 280px;
+            min-width: 260px;
+            max-width: 340px;
+            opacity: 0;
+            transform: translateY(30px);
+            transition: opacity 0.5s ease, transform 0.5s ease;
+            position: relative;
+            z-index: 1;
+        }
+        .container.visible .col:nth-child(1) {
+            opacity: 1;
+            transform: translateY(0);
+            transition-delay: 0.3s;
+        }
+        .container.visible .col:nth-child(2) {
+            opacity: 1;
+            transform: translateY(0);
+            transition-delay: 0.4s;
+        }
+        .container.visible .col:nth-child(3) {
+            opacity: 1;
+            transform: translateY(0);
+            transition-delay: 0.5s;
+        }
+
+        .client-card {
+            background: #0a0a0a;
+            border: 1px solid #2a2a2a;
+            border-radius: 28px;
+            padding: 1.8rem 1.5rem;
+            box-shadow: 0 15px 25px -15px rgba(255,255,255,0.05);
+            transition: border-color 0.3s, box-shadow 0.3s, transform 0.2s;
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            position: relative;
+            z-index: 1;
+        }
+        .client-card:hover { 
+            border-color: #4a4a4a; 
+            box-shadow: 0 20px 30px -15px rgba(255,255,255,0.1); 
+            transform: translateY(-2px); 
+        }
+        .client-card.highlight { 
+            border-color: #fff; 
+            box-shadow: 0 0 25px rgba(255,255,255,0.15); 
+        }
+        .card-title {
+            font-size: 2rem;
+            font-weight: 600;
+            margin-bottom: 1.2rem;
+            color: #fff;
+            border-bottom: 1px solid #2a2a2a;
+            padding-bottom: 0.6rem;
+        }
+        .desc-box {
+            color: #b0b0b0;
+            font-weight: 300;
+            line-height: 1.7;
+            font-size: 1rem;
+            flex-grow: 1;
+            min-height: 80px;
+            margin-bottom: 1.2rem;
+            white-space: pre-line;
+        }
+
+        /* 三角形按钮 */
+        .toggle-btn {
+            align-self: flex-end;
+            width: 40px;
+            height: 40px;
+            background: transparent;
+            border: none;
+            cursor: pointer;
+            margin: 0.5rem 0;
+            transition: transform 0.2s;
+        }
+        .toggle-btn:hover { transform: scale(1.1); }
+        .triangle {
+            width: 0;
+            height: 0;
+            border-left: 12px solid transparent;
+            border-right: 12px solid transparent;
+            border-top: 18px solid #666;
+            transition: border-top-color 0.2s, transform 0.3s;
+            margin: 0 auto;
+        }
+        .toggle-btn:hover .triangle { border-top-color: #fff; }
+        .triangle.rotated { transform: rotate(180deg); }
+
+        /* 下载区块 */
+        .download-area {
+            display: none;
+            flex-direction: column;
+            gap: 1.2rem;
+            opacity: 0;
+            transform: scale(0.95) translateY(-15px);
+            transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+            margin-top: 0.5rem;
+            border-top: 1px dashed #2a2a2a;
+            padding-top: 1.2rem;
+        }
+        .download-visible {
+            display: flex;
+            animation: downloadPopIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+        }
+        @keyframes downloadPopIn {
+            0% { opacity: 0; transform: scale(0.9) translateY(-20px); }
+            50% { opacity: 0.8; transform: scale(1.02) translateY(2px); }
+            100% { opacity: 1; transform: scale(1) translateY(0); }
+        }
+        .download-collapse { animation: downloadPopOut 0.3s ease forwards; }
+        @keyframes downloadPopOut {
+            0% { opacity: 1; transform: scale(1) translateY(0); }
+            100% { opacity: 0; transform: scale(0.9) translateY(-15px); display: none; }
+        }
+
+        .btn-wrapper { display: flex; gap: 12px; flex-wrap: wrap; }
+        .btn {
+            flex: 1 1 120px;
+            padding: 0.9rem 0.5rem;
+            border-radius: 40px;
+            border: none;
+            font-weight: 500;
+            font-size: 1rem;
+            background: #1a1a1a;
+            color: #e0e0e0;
+            border: 1px solid #333;
+            box-shadow: 0 4px 0 #0a0a0a;
+            transition: all 0.2s;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .btn:active { transform: translateY(3px); box-shadow: 0 1px 0 #0a0a0a; }
+        .btn:hover { background: #252525; border-color: #555; }
+        .extract-code { color: #6a6a6a; font-size: 0.85rem; text-align: center; border-top: 1px dashed #2a2a2a; padding-top: 0.8rem; }
+
+        /* 下载遮罩 */
+        .download-overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.9);
+            backdrop-filter: blur(8px);
+            z-index: 40000;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+        .download-overlay.visible { display: flex; opacity: 1; }
+        .download-loader {
+            width: 100px; height: 100px;
+            border: 6px solid rgba(255,255,255,0.1);
+            border-top: 6px solid #fff;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 2rem;
+            box-shadow: 0 0 30px rgba(255,255,255,0.3);
+        }
+        .download-message { color: #fff; font-size: 1.5rem; font-weight: 500; animation: pulse 1.5s infinite; }
+        .download-countdown { color: #b0b0b0; font-size: 1.2rem; margin-top: 1rem; }
+        @keyframes pulse { 0%,100% { opacity: 0.8; transform: scale(1); } 50% { opacity: 1; transform: scale(1.05); } }
+    </style>
+</head>
+<body>
+    <!-- 圆圈加载条 -->
+    <div class="loading-container" id="loadingContainer">
+        <div class="circle-loader"></div>
+    </div>
+
+    <!-- 下载遮罩 -->
+    <div class="download-overlay" id="downloadOverlay">
+        <div class="download-loader"></div>
+        <div class="download-message" id="downloadMessage">准备下载中</div>
+        <div class="download-countdown" id="countdownDisplay">3 秒后自动跳转</div>
+    </div>
+
+    <!-- 侧边栏遮罩 -->
+    <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+    <!-- 侧边栏菜单 -->
+    <div class="sidebar" id="sidebar">
+        <div class="sidebar-header">功能设置</div>
+        <div class="sidebar-item active" id="rippleSidebarItem">
+            <span class="sidebar-item-label">涟漪特效</span>
+            <div class="sidebar-item-switch"></div>
+        </div>
+        <div class="sidebar-item active" id="snowSidebarItem">
+            <span class="sidebar-item-label">雪花特效</span>
+            <div class="sidebar-item-switch"></div>
+        </div>
+    </div>
+
+    <!-- 主内容 -->
+    <div class="container" id="mainContent">
+        <div class="header">
+            <h1>MC客户端下载</h1>
+            <div class="version-bar">
+                <div class="menu-icon" id="menuIcon">
+                    <span></span><span></span><span></span>
+                </div>
+                <div class="version-text">版本选择 1.20.1</div>
+            </div>
+        </div>
+
+        <div class="row">
+            <!-- 矿透端 -->
+            <div class="col">
+                <div class="client-card" id="card-mining">
+                    <div class="card-title">矿透端</div>
+                    <div class="desc-box">矿透+血甲显示+选择框+3D图腾+挖掘百分之显示</div>
+                    <button class="toggle-btn" id="toggle-mining"><div class="triangle" id="triangle-mining"></div></button>
+                    <div class="download-area" id="download-mining">
+                        <div class="btn-wrapper">
+                            <a href="#" class="btn download-btn" data-edition="矿透端" data-type="网盘" data-url="https://wwwk.qyshare.com:2083/s/r9mg9f">网盘下载</a>
+                            <a href="#" class="btn download-btn" data-edition="矿透端" data-type="直链" data-url="https://wwwk.qyshare.com:2083/api/share/download?token=r9mg9f&fileId=571289&hostId=1">直接下载</a>
+                        </div>
+                        <div class="extract-code">提取码: LINF</div>
+                    </div>
+                </div>
+            </div>
+            <!-- PVP端 -->
+            <div class="col">
+                <div class="client-card" id="card-pvp">
+                    <div class="card-title">PVP端</div>
+                    <div class="desc-box">矿透+血甲显示+选择框+3D图腾</div>
+                    <button class="toggle-btn" id="toggle-pvp"><div class="triangle" id="triangle-pvp"></div></button>
+                    <div class="download-area" id="download-pvp">
+                        <div class="btn-wrapper">
+                            <a href="#" class="btn download-btn" data-edition="PVP端" data-type="网盘" data-url="https://wwwk.qyshare.com:2083/s/adceic">网盘下载</a>
+                            <a href="#" class="btn download-btn" data-edition="PVP端" data-type="直链" data-url="https://wwwk.qyshare.com:2083/api/share/download?token=adceic&fileId=571259&hostId=1">直接下载</a>
+                        </div>
+                        <div class="extract-code">提取码: LINF</div>
+                    </div>
+                </div>
+            </div>
+            <!-- 生存端 -->
+            <div class="col">
+                <div class="client-card" id="card-survival">
+                    <div class="card-title">生存端</div>
+                    <div class="desc-box">无矿透无显示血纯光影<br>只添加了一个光影整合包材质</div>
+                    <button class="toggle-btn" id="toggle-survival"><div class="triangle" id="triangle-survival"></div></button>
+                    <div class="download-area" id="download-survival">
+                        <div class="btn-wrapper">
+                            <a href="#" class="btn download-btn" data-edition="生存端" data-type="网盘" data-url="https://wwwk.qyshare.com:2083/s/ma">网盘下载</a>
+                            <a href="#" class="btn download-btn" data-edition="生存端" data-type="直链" data-url="https://wwwk.qyshare.com:2083/api/share/download?token=ma&fileId=571309&hostId=1">直接下载</a>
+                        </div>
+                        <div class="extract-code">提取码: LINF</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        (function() {
+            // ---------- 3秒加载条 ----------
+            const loadingContainer = document.getElementById('loadingContainer');
+            const mainContent = document.getElementById('mainContent');
+
+            setTimeout(() => {
+                loadingContainer.classList.add('hidden');
+                mainContent.classList.add('visible');
+                setTimeout(() => {
+                    if (loadingContainer.parentNode) {
+                        loadingContainer.style.display = 'none';
+                    }
+                }, 500);
+            }, 3000);
+
+            // ---------- 卡片展开逻辑 ----------
+            const cards = {
+                mining: {
+                    card: document.getElementById('card-mining'),
+                    toggle: document.getElementById('toggle-mining'),
+                    triangle: document.getElementById('triangle-mining'),
+                    download: document.getElementById('download-mining')
+                },
+                pvp: {
+                    card: document.getElementById('card-pvp'),
+                    toggle: document.getElementById('toggle-pvp'),
+                    triangle: document.getElementById('triangle-pvp'),
+                    download: document.getElementById('download-pvp')
+                },
+                survival: {
+                    card: document.getElementById('card-survival'),
+                    toggle: document.getElementById('toggle-survival'),
+                    triangle: document.getElementById('triangle-survival'),
+                    download: document.getElementById('download-survival')
+                }
+            };
+            const sections = Object.values(cards);
+
+            function hideAllDownloads() {
+                sections.forEach(s => {
+                    s.download.classList.remove('download-visible', 'download-collapse');
+                    s.card.classList.remove('highlight');
+                    s.triangle.classList.remove('rotated');
+                });
+            }
+
+            function hideAllWithAnimation() {
+                const promises = [];
+                sections.forEach(s => {
+                    if (s.download.classList.contains('download-visible')) {
+                        s.download.classList.remove('download-visible');
+                        s.download.classList.add('download-collapse');
+                        s.card.classList.remove('highlight');
+                        s.triangle.classList.remove('rotated');
+                        const p = new Promise(resolve => {
+                            const onEnd = () => {
+                                s.download.classList.remove('download-collapse');
+                                s.download.removeEventListener('animationend', onEnd);
+                                resolve();
+                            };
+                            s.download.addEventListener('animationend', onEnd);
+                        });
+                        promises.push(p);
+                    }
+                });
+                return Promise.all(promises);
+            }
+
+            function openDownload(section) {
+                section.download.classList.remove('download-collapse');
+                void section.download.offsetWidth;
+                section.download.classList.add('download-visible');
+                section.card.classList.add('highlight');
+                section.triangle.classList.add('rotated');
+            }
+
+            async function toggleDownload(target) {
+                const isOpen = target.download.classList.contains('download-visible');
+                if (isOpen) {
+                    target.download.classList.remove('download-visible');
+                    target.download.classList.add('download-collapse');
+                    target.card.classList.remove('highlight');
+                    target.triangle.classList.remove('rotated');
+                    await new Promise(resolve => {
+                        const onEnd = () => {
+                            target.download.classList.remove('download-collapse');
+                            target.download.removeEventListener('animationend', onEnd);
+                            resolve();
+                        };
+                        target.download.addEventListener('animationend', onEnd);
+                    });
+                } else {
+                    await hideAllWithAnimation();
+                    openDownload(target);
+                }
+            }
+
+            sections.forEach(s => {
+                s.toggle.addEventListener('click', async (e) => {
+                    e.stopPropagation();
+                    e.preventDefault();
+                    await toggleDownload(s);
+                    createRipple(e);
+                });
+            });
+
+            // ---------- 下载遮罩 ----------
+            const downloadOverlay = document.getElementById('downloadOverlay');
+            const downloadMessage = document.getElementById('downloadMessage');
+            const countdownDisplay = document.getElementById('countdownDisplay');
+            let countdownTimer = null;
+
+            function showDownloadOverlay(edition, type, url) {
+                if (countdownTimer) clearInterval(countdownTimer);
+                downloadMessage.textContent = `${edition} - ${type}`;
+                downloadOverlay.classList.add('visible');
+                let countdown = 3;
+                countdownDisplay.textContent = `${countdown} 秒后自动跳转`;
+                countdownTimer = setInterval(() => {
+                    countdown--;
+                    if (countdown > 0) {
+                        countdownDisplay.textContent = `${countdown} 秒后自动跳转`;
+                    } else {
+                        clearInterval(countdownTimer);
+                        countdownTimer = null;
+                        window.open(url, '_blank');
+                        setTimeout(() => {
+                            downloadOverlay.classList.remove('visible');
+                        }, 300);
+                    }
+                }, 1000);
+            }
+
+            document.querySelectorAll('.download-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const edition = btn.dataset.edition || '客户端';
+                    const type = btn.dataset.type || '下载';
+                    const url = btn.dataset.url;
+                    if (url) showDownloadOverlay(edition, type, url);
+                    createRipple(e);
+                });
+            });
+
+            downloadOverlay.addEventListener('click', (e) => {
+                if (countdownTimer) clearInterval(countdownTimer);
+                downloadOverlay.classList.remove('visible');
+                createRipple(e);
+            });
+
+            // ---------- 涟漪特效 ----------
+            let rippleEnabled = true;
+            function createRipple(e) {
+                if (!rippleEnabled) return;
+                requestAnimationFrame(() => {
+                    const ripple = document.createElement('div');
+                    ripple.className = 'ripple';
+                    ripple.style.left = e.clientX + 'px';
+                    ripple.style.top = e.clientY + 'px';
+                    document.body.appendChild(ripple);
+                    setTimeout(() => {
+                        if (ripple.parentNode) ripple.remove();
+                    }, 900);
+                });
+            }
+
+            // ---------- 雪花特效 ----------
+            let snowEnabled = true;
+            let snowInterval = null;
+            function startSnow() {
+                if (snowInterval) return;
+                snowInterval = setInterval(() => {
+                    if (!snowEnabled) return;
+                    requestAnimationFrame(() => {
+                        const flake = document.createElement('div');
+                        flake.className = 'snowflake';
+                        const size = Math.random() * 4 + 2;
+                        flake.style.width = size + 'px';
+                        flake.style.height = size + 'px';
+                        flake.style.left = Math.random() * 100 + 'vw';
+                        flake.style.animationDuration = (Math.random() * 12 + 8) + 's';
+                        flake.style.opacity = Math.random() * 0.25 + 0.15;
+                        flake.style.filter = `blur(${Math.random() * 1.5}px)`;
+                        document.body.appendChild(flake);
+                        setTimeout(() => {
+                            if (flake.parentNode) flake.remove();
+                        }, 25000);
+                    });
+                }, 150);
+            }
+            function stopSnow() {
+                if (snowInterval) {
+                    clearInterval(snowInterval);
+                    snowInterval = null;
+                }
+                document.querySelectorAll('.snowflake').forEach(f => f.remove());
+            }
+
+            // ---------- 侧边栏菜单与记忆 ----------
+            const menuIcon = document.getElementById('menuIcon');
+            const sidebar = document.getElementById('sidebar');
+            const sidebarOverlay = document.getElementById('sidebarOverlay');
+            const rippleSidebarItem = document.getElementById('rippleSidebarItem');
+            const snowSidebarItem = document.getElementById('snowSidebarItem');
+
+            // 读取记忆
+            rippleEnabled = localStorage.getItem('rippleEnabled') !== 'false';
+            snowEnabled = localStorage.getItem('snowEnabled') !== 'false';
+
+            // 应用状态到侧边栏项
+            if (rippleEnabled) rippleSidebarItem.classList.add('active');
+            else rippleSidebarItem.classList.remove('active');
+
+            if (snowEnabled) {
+                snowSidebarItem.classList.add('active');
+                startSnow();
+            } else {
+                snowSidebarItem.classList.remove('active');
+                stopSnow();
+            }
+
+            // 打开侧边栏
+            function openSidebar() {
+                sidebar.classList.add('visible');
+                sidebarOverlay.classList.add('visible');
+                menuIcon.classList.add('active');
+            }
+
+            // 关闭侧边栏
+            function closeSidebar() {
+                sidebar.classList.remove('visible');
+                sidebarOverlay.classList.remove('visible');
+                menuIcon.classList.remove('active');
+            }
+
+            // 点击菜单图标切换侧边栏
+            menuIcon.addEventListener('click', (e) => {
+                e.stopPropagation();
+                if (sidebar.classList.contains('visible')) {
+                    closeSidebar();
+                } else {
+                    openSidebar();
+                }
+                createRipple(e);
+            });
+
+            // 点击遮罩关闭侧边栏
+            sidebarOverlay.addEventListener('click', (e) => {
+                closeSidebar();
+                createRipple(e);
+            });
+
+            // 侧边栏内的开关点击
+            rippleSidebarItem.addEventListener('click', (e) => {
+                e.stopPropagation();
+                rippleEnabled = !rippleEnabled;
+                rippleSidebarItem.classList.toggle('active', rippleEnabled);
+                localStorage.setItem('rippleEnabled', rippleEnabled);
+                createRipple(e);
+            });
+
+            snowSidebarItem.addEventListener('click', (e) => {
+                e.stopPropagation();
+                snowEnabled = !snowEnabled;
+                snowSidebarItem.classList.toggle('active', snowEnabled);
+                localStorage.setItem('snowEnabled', snowEnabled);
+                if (snowEnabled) startSnow();
+                else stopSnow();
+                createRipple(e);
+            });
+
+            // 全局点击涟漪（排除已在子元素触发的情况）
+            document.addEventListener('click', (e) => {
+                if (!e._rippleCreated) {
+                    e._rippleCreated = true;
+                    createRipple(e);
+                }
+            });
+
+            hideAllDownloads();
+        })();
+    </script>
+</body>
+</html>
