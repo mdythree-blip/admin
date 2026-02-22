@@ -181,7 +181,7 @@
             text-shadow: 0 0 12px rgba(255,255,255,0.2);
         }
 
-        /* 版本选择栏 */
+        /* 版本选择栏 - 左侧菜单，右侧铅笔图标+文字（文字在左，图标在右） */
         .version-bar {
             display: flex;
             align-items: center;
@@ -190,6 +190,7 @@
             margin-bottom: 2rem;
             position: relative;
             z-index: 200;
+            height: 40px;
         }
         .menu-icon {
             position: absolute;
@@ -218,13 +219,40 @@
         .menu-icon.active span:nth-child(1) { transform: rotate(45deg) translate(5px,5px); }
         .menu-icon.active span:nth-child(2) { opacity: 0; }
         .menu-icon.active span:nth-child(3) { transform: rotate(-45deg) translate(5px,-5px); }
-        .version-text {
+
+        /* 右侧铅笔区域 - 文字在左，图标在右（图标在最右边） */
+        .version-right {
+            position: absolute;
+            right: 0;
+            display: flex;
+            align-items: center;
+            gap: 2rem; /* 增大间隙，避免移动后遮挡 */
+            z-index: 201;
+            overflow: visible;
+        }
+        .custom-text {
             color: #b0b0b0;
-            font-size: 1.2rem;
-            background: rgba(255,255,255,0.05);
-            padding: 0.5rem 2rem;
-            border-radius: 40px;
-            border: 1px solid #333;
+            font-size: 1rem;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s ease, visibility 0.3s ease;
+            white-space: nowrap;
+        }
+        .custom-text.visible {
+            opacity: 1;
+            visibility: visible;
+        }
+        .pencil-icon {
+            font-size: 1.8rem;
+            cursor: pointer;
+            transition: transform 0.3s ease;
+            user-select: none;
+            color: #fff;
+            line-height: 1;
+            order: 2; /* 确保图标在右侧 */
+        }
+        .pencil-icon.moved {
+            transform: translateX(-120px); /* 增大移动距离，确保完全越过文字 */
         }
 
         /* 侧边栏菜单 */
@@ -249,6 +277,8 @@
         .sidebar.visible {
             left: 0;
         }
+
+        /* 侧边栏头部 */
         .sidebar-header {
             color: #fff;
             font-size: 1.5rem;
@@ -257,6 +287,8 @@
             border-bottom: 1px solid #333;
             margin-bottom: 1rem;
         }
+
+        /* 侧边栏项 */
         .sidebar-item {
             display: flex;
             align-items: center;
@@ -609,10 +641,15 @@
         <div class="header">
             <h1>MC客户端下载</h1>
             <div class="version-bar">
+                <!-- 左侧菜单图标 -->
                 <div class="menu-icon" id="menuIcon">
                     <span></span><span></span><span></span>
                 </div>
-                <div class="version-text">版本选择 1.20.1</div>
+                <!-- 右侧铅笔区域：文字在左，图标在右（图标在最右边） -->
+                <div class="version-right">
+                    <span class="custom-text" id="customText">自定义</span>
+                    <span class="pencil-icon" id="pencilIcon">✎</span>
+                </div>
             </div>
         </div>
 
@@ -959,6 +996,11 @@
             const starSpeedValue = document.getElementById('starSpeedValue');
             const rainbowSpeedValue = document.getElementById('rainbowSpeedValue');
 
+            // 铅笔图标相关
+            const pencilIcon = document.getElementById('pencilIcon');
+            const customText = document.getElementById('customText');
+            let pencilClicked = false; // 记录是否第一次点击
+
             // 读取记忆
             rippleEnabled = localStorage.getItem('rippleEnabled') !== 'false';
             snowEnabled = localStorage.getItem('snowEnabled') !== 'false';
@@ -1133,7 +1175,35 @@
                 updateRainbowSpeed();
             });
 
-            // 全局点击涟漪
+            // ---------- 铅笔图标交互 ----------
+            pencilIcon.addEventListener('click', (e) => {
+                e.stopPropagation(); // 阻止事件冒泡，避免触发document点击
+                if (!pencilClicked) {
+                    // 第一次点击：铅笔左移，显示自定义文字
+                    pencilIcon.classList.add('moved');
+                    customText.classList.add('visible');
+                    pencilClicked = true;
+                } else {
+                    // 第二次点击：弹出提示，铅笔复位，隐藏文字
+                    alert('正在制作中，敬请期待');
+                    pencilIcon.classList.remove('moved');
+                    customText.classList.remove('visible');
+                    pencilClicked = false;
+                }
+                createRipple(e);
+            });
+
+            // 点击页面其他地方收起铅笔（如果已展开）
+            document.addEventListener('click', (e) => {
+                // 如果铅笔已展开，且点击的目标不是铅笔图标和自定义文字区域
+                if (pencilClicked && !pencilIcon.contains(e.target) && !customText.contains(e.target)) {
+                    pencilIcon.classList.remove('moved');
+                    customText.classList.remove('visible');
+                    pencilClicked = false;
+                }
+            });
+
+            // 全局点击涟漪（排除已在子元素触发的情况）
             document.addEventListener('click', (e) => {
                 if (!e._rippleCreated) {
                     e._rippleCreated = true;
